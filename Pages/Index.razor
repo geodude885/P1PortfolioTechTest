@@ -1,3 +1,15 @@
 ﻿@page "/"
+@using P1Portfolio.Services;
+
+@inject ISecclService SecclService
+@code {
+
+    private bool someResponse;
+    protected override async Task OnInitializedAsync()
+    {
+        someResponse =  await SecclService.GetSomeDataAsync();
+    }
+}
 
 <h1>Hello, world!</h1>
+<p>@someResponse</p>
