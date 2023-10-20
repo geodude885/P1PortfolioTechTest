@@ -1,9 +1,7 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
+using MatBlazor;
 using P1Portfolio.Clients;
 using P1Portfolio.Configuration;
 using P1Portfolio.Services;
-using System.Runtime.CompilerServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +15,18 @@ builder.Services.AddHttpClient<SecclApiClient>(client =>
     client.BaseAddress = new Uri(secclSettings.ApiBaseUri);
 });
 builder.Services.AddTransient<ISecclService, SecclService>();
+
+builder.Services.AddMatBlazor();
+
+builder.Services.AddMatToaster(config =>
+{
+	config.Position = MatToastPosition.BottomCenter;
+	config.PreventDuplicates = true;
+	config.NewestOnTop = true;
+	config.ShowCloseButton = true;
+	config.MaximumOpacity = 95;
+	config.VisibleStateDuration = 3000;
+});
 
 builder.Services.AddServerSideBlazor();
 

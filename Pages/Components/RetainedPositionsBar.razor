@@ -1,0 +1,133 @@
+﻿@using P1Portfolio.Data.ViewModel;
+@using MatBlazor;
+@using P1Portfolio.Pages.Formatters;
+
+@if (RetainedPositions != null) {
+
+<div class="relative-container">
+    <div class="bar-container">
+        @foreach (var position in RetainedPositions)
+        {
+            var index = RetainedPositions.IndexOf(position);
+            <div class="bar-segment"
+            style="flex-basis: @GetWidth(position); background-color: @GetBarColor(index);"
+            @onmouseover="() => ShowTooltip(position)"
+            @onmouseout="HideTooltip">
+                <MatBody2 Class="bar-text">@position.AssetName @PercentageFormatter.ToPercent(position.PercentageByValue)</MatBody2>
+            </div>
+        }
+
+    </div>
+        <div class="position-tooltip @(showTooltip ? "show" : "")">
+        <MatBody2>Asset Name: @(currentPosition?.AssetName ?? "") </MatBody2>
+        <MatBody2>Percent of Portfolio: @PercentageFormatter.ToPercent(currentPosition?.PercentageByValue ?? 0)</MatBody2>
+        <MatBody2>Quantity: @(currentPosition?.Quantity ?? 0) </MatBody2>
+        <MatBody2>Value: @(MoneyFormatter.ToMoney(currentPosition?.Value ?? 0)) </MatBody2>
+        <MatBody2>
+            <span>Value Change:</span>
+            <span Class="@ColourFormatter.GetTextColourClass(currentPosition?.ValueChange ?? 0)">
+                @MoneyFormatter.ToMoney(currentPosition?.ValueChange ?? 0)
+            </span>
+        </MatBody2>
+        <MatBody2>
+            <span>Percent Growth:</span>
+            <span Class="@ColourFormatter.GetTextColourClass(currentPosition?.GrowthPercent ?? 0)">
+                @PercentageFormatter.ToPercent(currentPosition?.GrowthPercent ?? 0)
+            </span>
+        </MatBody2>
+    </div>
+</div>
+}
+
+<style>
+    .bar-container {
+        display: flex;
+        flex-direction: row;
+        height: 50px;
+        width: 100%;
+    }
+
+    .bar-segment {
+        flex-grow: 1;
+        text-align: center;
+        color: white;
+        padding: 0px 10px;
+        min-width: 0; /* Important */
+    }
+
+    .bar-text {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden; /* Important */
+    }
+
+    .relative-container {
+        position: relative;
+    }
+
+    .position-tooltip {
+        background-color: #333;
+        color: white;
+        text-align: center;
+        border-radius: 0px 0px 5px 5px;
+        width: 100%;
+        position: absolute; 
+        opacity: 0;
+        z-index: 10;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .position-tooltip.show {
+        opacity: 1;
+    }
+
+    .bar-segment:hover .tooltip {
+        display: block;
+    }
+
+</style>
+
+@code {
+    public enum DisplayMode
+    {
+        Quantity,
+        Value
+    }
+
+    [Parameter]
+    public List<RetainedPositionViewModel> RetainedPositions { get; set; }
+
+    [Parameter]
+    public DisplayMode Mode { get; set; }
+
+    private bool showTooltip = false;
+    private RetainedPositionViewModel? currentPosition;
+
+    private void ShowTooltip(RetainedPositionViewModel position)
+    {
+        showTooltip = true;
+        currentPosition = position;
+    }
+
+    private void HideTooltip()
+    {
+        showTooltip = false;
+    }
+
+    private decimal Total => Mode == DisplayMode.Quantity
+        ? RetainedPositions.Sum(x => x.Quantity)
+        : RetainedPositions.Sum(x => x.Value);
+
+    private string GetWidth(RetainedPositionViewModel position)
+    {
+        var value = Mode == DisplayMode.Quantity ? position.Quantity : position.Value;
+        if (Total == 0) return $"{1 / (RetainedPositions.Count == 0 ? 1 : RetainedPositions.Count)}%";
+        return $"{(value / Total * 100)}%";
+    }
+
+    private string GetBarColor(int index)
+    {
+        var colors = new[] { "red", "blue", "green", "yellow" };
+        return colors[index % colors.Length];
+    }
+}

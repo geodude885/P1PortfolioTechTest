@@ -23,6 +23,20 @@
     color: white;
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
+.blazor-error-boundary::after {
+    content: "An error has occurred."
+}
+
+body {
+    margin: 0px;
+}
+
+.green-text {
+    color: forestgreen;
+}
+.amber-text {
+    color: orange;
+}
+.red-text {
+    color: orangered;
+}

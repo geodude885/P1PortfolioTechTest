@@ -1,0 +1,212 @@
+﻿@using P1Portfolio.Data.Dto;
+@using P1Portfolio.Data.ViewModel;
+@using P1Portfolio.Pages.Formatters;
+@using P1Portfolio.Services;
+@using MatBlazor;
+@using P1Portfolio.Pages.Components
+@using static P1Portfolio.Pages.Components.RetainedPositionsBar;
+
+@inject ISecclService SecclService;
+
+<div class="card-content row-container">
+	<MatH5>Portfolio Report</MatH5>
+	<div>
+		<MatDatePicker Label="From Date" ValueChanged="@((DateTime? date) => FromDateChanged(date))" Maximum="@model.ReportsToDate"></MatDatePicker>
+	</div>
+		
+	<div>
+		<MatDatePicker Label="To Date" ValueChanged="@((DateTime? date) => ToDateChanged(date))" Minimum="@model.ReportsFromDate"></MatDatePicker>
+	</div>
+</div>
+
+<MatDivider></MatDivider>
+
+<MatH4>
+	@PageTitle
+	@if (model.isLoading)
+	{
+		<MatProgressCircle Indeterminate="true"></MatProgressCircle>
+	}
+</MatH4>
+
+<div class="content">
+	<MatH4>Positions:</MatH4>
+
+	<div class="row-container">
+		<div>
+			<MatBody1>Opening Value: </MatBody1>
+			<MatBody2>@MoneyFormatter.ToMoney(model.OpeningValue)</MatBody2>
+		</div>
+		<div>
+			<MatBody1>Closing Value: </MatBody1>
+			<MatBody2 class="@ColourFormatter.GetTextColourClass(model.ClosingValue - model.OpeningValue)">
+				@MoneyFormatter.ToMoney(@model.ClosingValue)
+			</MatBody2>
+		</div>
+		<div>
+			<MatBody1>Total Realised: </MatBody1>
+			<MatBody2>@MoneyFormatter.ToMoney(model.TotalRealised)</MatBody2>
+		</div>
+		<div>
+			<MatBody1>Total Retained: </MatBody1>
+			<MatBody2 class="@ColourFormatter.GetTextColourClass(model.TotalRetained - model.TotalRealised)">
+				@MoneyFormatter.ToMoney(@model.TotalRetained)
+			</MatBody2>
+		</div>
+
+	</div>
+
+	<RetainedPositionsBar RetainedPositions="@model.RetainedPositionsAggregate" Mode="DisplayMode.Value"></RetainedPositionsBar>
+
+	<div class="row-container">
+		<MatCard class="grow">
+			<div class="col card-content">
+				<MatBody1>Payments: </MatBody1>
+				<MatBody2>Count: @model.PaymentCount</MatBody2>
+				<MatBody2>In: @MoneyFormatter.ToMoney(model.PaymentsInTotal)</MatBody2>
+				<MatBody2>Out: @MoneyFormatter.ToMoney(model.PaymentsOutTotal)</MatBody2>
+				<MatBody2>Total:@(MoneyFormatter.ToMoney(model.PaymentsInTotal + model.PaymentsOutTotal))</MatBody2>
+			</div>
+		</MatCard>
+		<MatCard class="grow">
+			<div class="col card-content">
+				<MatBody1>Transfers: </MatBody1>
+				<MatBody2>Count: @model.TransfersCount</MatBody2>
+				<MatBody2>In: @MoneyFormatter.ToMoney(model.TransfersInTotal)</MatBody2>
+				<MatBody2>Out: @MoneyFormatter.ToMoney(model.TransfersOutTotal)</MatBody2>
+				<MatBody2>Total:@(MoneyFormatter.ToMoney(model.TransfersInTotal + model.TransfersOutTotal))</MatBody2>
+			</div>
+		</MatCard>
+		<MatCard class="grow">
+			<div class="col card-content">
+				<MatBody1>Internal Transfers: </MatBody1>
+				<MatBody2>Count: @model.InternalTransfersCount</MatBody2>
+				<MatBody2>In: @MoneyFormatter.ToMoney(model.InternalTransfersInTotal)</MatBody2>
+				<MatBody2>Out: @MoneyFormatter.ToMoney(model.InternalTransfersOutTotal)</MatBody2>
+				<MatBody2>Total:@(MoneyFormatter.ToMoney(model.InternalTransfersInTotal + model.InternalTransfersOutTotal))</MatBody2>
+			</div>
+		</MatCard>
+		<MatCard class="grow">
+			<div class="col card-content">
+				<MatBody1>Income: </MatBody1>
+				<MatBody2>Transaction Count: @model.IncomeCount</MatBody2>
+				<MatBody2>Total:@(MoneyFormatter.ToMoney(model.IncomeTotal))</MatBody2>
+			</div>
+		</MatCard>
+	</div>
+</div>
+
+
+	<style>
+		.row-container {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			align-items: stretch;
+			column-gap: 20px;
+			row-gap: 20px;
+			margin: 20px;
+		}
+
+		.grow {
+			height: auto;
+		}
+
+		.card-content {
+			padding: 20px;
+			min-width: 200px;
+		}
+
+		.col {
+			display: flex;
+			flex-flow: column;
+		}
+	</style>
+
+	@code {
+	[Parameter]
+	public List<string> PortfolioIds { get; set; } = new();
+
+	private PortfolioReportsViewModel model = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadPortfolioReports();
+	}
+
+	protected override async Task OnParametersSetAsync()
+	{
+		await LoadPortfolioReports();
+	}
+
+	private async Task FromDateChanged(DateTime? date)
+	{
+		model.ReportsFromDate = date;
+		await LoadPortfolioReports();
+	}
+
+	private async Task ToDateChanged(DateTime? date)
+	{
+		model.ReportsToDate = date;
+		await LoadPortfolioReports();
+	}
+
+	private async Task LoadPortfolioReports()
+	{
+		model.isLoading = true;
+		model.Reports = await SecclService.GetPortfolioReports(PortfolioIds, model.ReportsFromDate, model.ReportsToDate);
+		model.isLoading = false;
+	}
+
+	private string PageTitle
+	{
+		get
+		{
+			var names = model.Reports.Select(r => r.Name).ToArray();
+			// String join with commas and ampersand for final word
+			return names.Length > 1
+			? string.Format("{0} & {1}", string.Join(", ", names, 0, names.Length - 1), names[^1])
+			: string.Join(", ", names);
+		}
+	}
+
+	// Aggregates transactions in and transactions out and sets transactionChart data to relevant results
+	public SortedDictionary<DateTime, decimal> GetTransactionsInData()
+	{
+		SortedDictionary<DateTime, decimal> transactionsInAggregated = new SortedDictionary<DateTime, decimal>();
+
+		foreach (var report in model.Reports)
+		{
+			// Aggregate transactions in
+			foreach (var transactionIn in report.Payments.TransactionsIn)
+			{
+				if (transactionsInAggregated.ContainsKey(transactionIn.ValueDate))
+				{
+					transactionsInAggregated[transactionIn.ValueDate] += transactionIn.Amount;
+				}
+				transactionsInAggregated[transactionIn.ValueDate] = transactionIn.Amount;
+
+			}
+		}
+		return transactionsInAggregated;
+	}
+
+	public SortedDictionary<DateTime, decimal> GetTransactionsOutData()
+	{
+		SortedDictionary<DateTime, decimal> transactionsOutAggregated = new SortedDictionary<DateTime, decimal>();
+
+		foreach (var report in model.Reports)
+		{
+			// Aggregate transactions out
+			foreach (var transactionOut in report.Payments.TransactionsOut)
+			{
+				if (transactionsOutAggregated.ContainsKey(transactionOut.ValueDate))
+				{
+					transactionsOutAggregated[transactionOut.ValueDate] += transactionOut.Amount;
+				}
+				transactionsOutAggregated[transactionOut.ValueDate] = transactionOut.Amount;
+			}
+		}
+		return transactionsOutAggregated;
+	}
+}

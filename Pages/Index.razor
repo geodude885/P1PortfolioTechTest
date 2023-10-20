@@ -1,15 +1,121 @@
 ﻿@page "/"
+@using P1Portfolio.Data.Dto;
+@using P1Portfolio.Data;
+@using P1Portfolio.Pages.Components
+@using P1Portfolio.Pages.Formatters;
 @using P1Portfolio.Services;
-
+@using MatBlazor;
 @inject ISecclService SecclService
-@code {
 
-    private bool someResponse;
-    protected override async Task OnInitializedAsync()
-    {
-        someResponse =  await SecclService.GetSomeDataAsync();
-    }
+@* Note: This page should probably be a layout page - as the scope of this project was small it was used as the landing page *@
+
+@if (PortfolioSummaries == null)
+{
+    <div style="display: flex; justify-content: center; align-content: center;">
+        <MatProgressCircle Indeterminate="true"></MatProgressCircle>
+    </div>
+}
+else
+{
+    <MatDrawerContainer Style="height: 100vh;">
+        <MatDrawer @bind-Opened="@IsDrawerOpened" class="drawerBg">
+            <div>
+                <MatH5 Style="padding:20px;"> Portfolios:</MatH5>
+            </div>
+            <MatList>
+                @foreach (var portfolio in PortfolioSummaries)
+                {
+                    <MatListItem @onclick="@(() => ToggleSelectPortfolio(portfolio))" class="@portfolio.GetSelectedClass">
+                        <div class="basic-info col">
+                            <div>@portfolio.Name</div>
+                            <div class="@ColourFormatter.GetStatusColourClass(portfolio.Status)">@portfolio.Status</div>
+                        </div>
+                        <div class="extra-info col col-end">
+                            <div>Value:</div>
+                            <div>@portfolio.CurrentValue @portfolio.Currency</div>
+                        </div>
+                    </MatListItem>
+                }
+            </MatList>
+        </MatDrawer>
+        <MatDrawerContent Style="padding:20px;">
+            @if (SelectedPortfolioIds.Any()) {
+                <PortfoliosViewComponent PortfolioIds="@SelectedPortfolioIds"></PortfoliosViewComponent>
+            }
+        </MatDrawerContent>
+    </MatDrawerContainer>
+
+
 }
 
-<h1>Hello, world!</h1>
-<p>@someResponse</p>
+<style> 
+
+    .drawerBg {
+        border-width: 0px 1px 0px 0px;
+        border-color: slategray;
+    }
+
+    .extra-info {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .col {
+        display: flex;
+        flex-flow: column;
+    }
+
+    .col-end > div {
+        text-align: end;
+    }
+
+    .basic-info:hover + .extra-info {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .selected {
+        background-color: lightgray;
+        font-weight: bolder;
+    }
+
+    .mdc-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .mdc-list-item:hover .extra-info {
+        opacity: 1;
+        visibility: visible;
+    }
+
+</style>
+
+
+@code {
+
+    private List<PortfolioSummaryViewModel> PortfolioSummaries = null;
+
+    private IEnumerable<PortfolioSummaryViewModel> SelectedPortfolioSummaries { get => PortfolioSummaries.Where(ps => ps.IsSelected); }
+
+    private bool IsDrawerOpened = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PortfolioSummaries = await SecclService.GetAllPortfolioSummraiesAsync();
+        if (PortfolioSummaries.Any()) PortfolioSummaries.First().IsSelected = true;
+    }
+
+    private List<string> SelectedPortfolioIds {
+        get => SelectedPortfolioSummaries.Select(ps => ps.Id).ToList();
+    }
+
+    // Allows maximum selection of 3 portfolios
+    private void ToggleSelectPortfolio(PortfolioSummaryViewModel portfolio)
+    {
+        if (portfolio.IsSelected == false && SelectedPortfolioSummaries.Count() >= 3) return;
+
+        portfolio.IsSelected = !portfolio.IsSelected;
+    }
+}
